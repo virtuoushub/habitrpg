@@ -28,7 +28,7 @@ api.auth = function(req, res, next) {
   var uid = req.headers['x-api-user'];
   var token = req.headers['x-api-key'];
   if (!(uid && token)) return res.json(401, NO_TOKEN_OR_UID);
-  User.findOne({_id: uid,apiToken: token}, function(err, user) {
+  User.findOne({_id: uid,apiToken: token}).populate('habits dailys todos rewards').exec(function(err, user) {
     if (err) return next(err);
     if (_.isEmpty(user)) return res.json(401, NO_USER_FOUND);
     if (user.auth.blocked) return res.json(401, accountSuspended(user._id));
@@ -43,7 +43,7 @@ api.auth = function(req, res, next) {
 api.authWithSession = function(req, res, next) { //[todo] there is probably a more elegant way of doing this...
   if (!(req.session && req.session.userId))
     return res.json(401, NO_SESSION_FOUND);
-  User.findOne({_id: req.session.userId}, function(err, user) {
+  User.findOne({_id: req.session.userId}).populate('habits dailys todos rewards').exec(function(err, user) {
     if (err) return next(err);
     if (_.isEmpty(user)) return res.json(401, NO_USER_FOUND);
     res.locals.user = user;
@@ -52,7 +52,7 @@ api.authWithSession = function(req, res, next) { //[todo] there is probably a mo
 };
 
 api.authWithUrl = function(req, res, next) {
-  User.findOne({_id:req.query._id, apiToken:req.query.apiToken}, function(err,user){
+  User.findOne({_id:req.query._id, apiToken:req.query.apiToken}).populate('habits dailys todos rewards').exec(function(err,user){
     if (err) return next(err);
     if (_.isEmpty(user)) return res.json(401, NO_USER_FOUND);
     res.locals.user = user;
@@ -93,14 +93,6 @@ api.registerUser = function(req, res, next) {
       newUser.preferences = newUser.preferences || {};
       newUser.preferences.language = req.language; // User language detected from browser, not saved
       user = new User(newUser);
-
-      // temporary for conventions
-      if (req.subdomains[0] == 'con') {
-        _.each(user.dailys, function(h){
-          h.repeat = {m:false,t:false,w:false,th:false,f:false,s:false,su:false};
-        })
-        user.extra = {signupEvent: 'wondercon'};
-      }
 
       user.save(cb);
       if(isProd) utils.txnEmail({name:username, email:email}, 'welcome');

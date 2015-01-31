@@ -352,10 +352,10 @@ var UserSchema = new Schema({
     optOut: {type:Boolean, 'default':false}
   },
 
-  habits:   {type:[TaskSchemas.HabitSchema]},
-  dailys:   {type:[TaskSchemas.DailySchema]},
-  todos:    {type:[TaskSchemas.TodoSchema]},
-  rewards:  {type:[TaskSchemas.RewardSchema]},
+  habits:   [{type:String, ref:"Habit"}],
+  dailys:   [{type:String, ref:"Daily"}],
+  todos:   [{type:String, ref:"Todo"}],
+  rewards:   [{type:String, ref:"Reward"}],
 
   extra: Schema.Types.Mixed
 
@@ -395,29 +395,32 @@ UserSchema.pre('save', function(next) {
   if (this.isNew){
     //TODO for some reason this doesn't work here: `_.merge(this, shared.content.userDefaults);`
     var self = this;
-    _.each(['habits', 'dailys', 'todos', 'rewards', 'tags'], function(taskType){
-      self[taskType] = _.map(shared.content.userDefaults[taskType], function(task){
+    _.each({habits:'Habit', dailys:'Daily', todos:'Todo', rewards:'Reward'}, function(modelName, taskType){
+      var model = mongoose.model(modelName);
+      _.each(shared.content.userDefaults[taskType], function(task){
         var newTask = _.cloneDeep(task);
 
         // Render task's text and notes in user's language
-        if(taskType === 'tags'){
-          // tasks automatically get id=helpers.uuid() from TaskSchema id.default, but tags are Schema.Types.Mixed - so we need to manually invoke here
-          newTask.id = shared.uuid();
-          newTask.name = newTask.name(self.preferences.language);
-        }else{
-          newTask.text = newTask.text(self.preferences.language);
-          newTask.notes = newTask.notes(self.preferences.language);
+        newTask.text = newTask.text(self.preferences.language);
+        newTask.notes = newTask.notes(self.preferences.language);
+        newTask.user = self._id;
 
-          if(newTask.checklist){
-            newTask.checklist = _.map(newTask.checklist, function(checklistItem){
-              checklistItem.text = checklistItem.text(self.preferences.language);
-              return checklistItem;
-            });
-          }
+        if(newTask.checklist){
+          newTask.checklist = _.map(newTask.checklist, function(checklistItem){
+            checklistItem.text = checklistItem.text(self.preferences.language);
+            return checklistItem;
+          });
         }
-
-        return newTask;
+        newTask = new model(newTask);
+        self[taskType].push(newTask);
+        newTask.save(); // TODO no error-checking here
       });
+      self.tasks = _.map(shared.content.userDefaults.tags, function(tag){
+        return _.merge(_.cloneDeep(tag), {
+          _id: shared.uuid(), // tasks automatically get id=helpers.uuid() from TaskSchema id.default, but tags are Schema.Types.Mixed - so we need to manually invoke here
+          name: tag.name(self.preferences.language)
+        });
+      })
     });
   }
 

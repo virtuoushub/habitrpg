@@ -13,8 +13,8 @@ var _ = require('lodash');
 // -----------
 
 var TaskSchema = {
-  //_id:{type: String,'default': helpers.uuid},
-  id: {type: String,'default': shared.uuid},
+  _id: {type: String,'default': shared.uuid},
+  user: {type: String, ref: 'User'},
   dateCreated: {type:Date, 'default':Date.now},
   text: String,
   notes: {type: String, 'default': ''},
@@ -30,6 +30,8 @@ var TaskSchema = {
   }
 };
 
+var opts = {minimize:false};
+
 var HabitSchema = new Schema(
   _.defaults({
     type: {type:String, 'default': 'habit'},
@@ -37,7 +39,7 @@ var HabitSchema = new Schema(
     up: {type: Boolean, 'default': true},
     down: {type: Boolean, 'default': true}
   }, TaskSchema)
-  , { _id: false, minimize:false }
+  , opts
 );
 
 var collapseChecklist = {type:Boolean, 'default':false};
@@ -66,7 +68,7 @@ var DailySchema = new Schema(
     checklist:checklist,
     streak: {type: Number, 'default': 0}
   }, TaskSchema)
-  , { _id: false, minimize:false }
+  , opts
 )
 
 var TodoSchema = new Schema(
@@ -78,14 +80,14 @@ var TodoSchema = new Schema(
     collapseChecklist:collapseChecklist,
     checklist:checklist
   }, TaskSchema)
-  , { _id: false, minimize:false }
+  , opts
 );
 
 var RewardSchema = new Schema(
   _.defaults({
     type: {type:String, 'default': 'reward'}
   }, TaskSchema)
-  , { _id: false, minimize:false }
+  , opts
 );
 
 /**
@@ -102,3 +104,8 @@ module.exports.HabitSchema = HabitSchema;
 module.exports.DailySchema = DailySchema;
 module.exports.TodoSchema = TodoSchema;
 module.exports.RewardSchema = RewardSchema;
+
+mongoose.model("Habit", HabitSchema);
+mongoose.model("Daily", DailySchema);
+mongoose.model("Todo", TodoSchema);
+mongoose.model("Reward", RewardSchema);
